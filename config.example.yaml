@@ -1,0 +1,46 @@
+# Copy to config.yaml and edit.
+
+streamers:
+  - name: kaicenat          # Twitch login name
+    min_views: 5000         # ignore clips below this
+    hashtags: [kaicenat]    # extra hashtags for this streamer
+  - name: xqc
+    min_views: 3000
+    hashtags: [xqc]
+
+discovery:
+  lookback_hours: 24        # only consider clips created in this window
+  min_duration: 8           # seconds
+  max_duration: 60
+
+processing:
+  layout: blur              # blur = 16:9 clip centred over a blurred copy; crop = centre crop
+  width: 1080
+  height: 1920
+  crf: 20
+  preset: veryfast
+
+caption:
+  template: "{title} 🔥 (clip from @{streamer} on Twitch)\n\n{hashtags}"
+  hashtags: [fyp, twitch, gaming, clips]
+
+platforms:
+  tiktok:
+    enabled: true
+    privacy_level: SELF_ONLY   # unaudited TikTok apps may only post SELF_ONLY
+  instagram:
+    enabled: false
+
+# Instagram needs a public https URL for the video file. Serve `local_dir`
+# from `base_url` (nginx, Caddy, a tunnel, a bucket sync...).
+hosting:
+  local_dir: data/public
+  base_url: null            # e.g. https://clips.example.com
+
+schedule:
+  interval_minutes: 60
+  max_clips_per_run: 3
+  max_posts_per_day: 5      # per platform
+
+paths:
+  data_dir: data
