@@ -34,7 +34,7 @@ def fake_download(clip, dest):
     return p
 
 
-def fake_render(src, dst, cfg, max_seconds=60):
+def fake_render(src, dst, cfg, max_seconds=60, subtitles=None):
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(b"rendered")
     return dst

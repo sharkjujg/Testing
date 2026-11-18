@@ -30,6 +30,25 @@ class ProcessingCfg(BaseModel):
     preset: str = "veryfast"
 
 
+class SubtitlesCfg(BaseModel):
+    """Burned-in auto-captions (Whisper). Needs `pip install -e '.[captions]'`."""
+
+    enabled: bool = False
+    model: str = "small"            # tiny | base | small | medium | large-v3
+    language: str | None = None     # None = auto-detect
+    device: str = "auto"            # auto | cpu | cuda
+    compute_type: str = "int8"      # int8 is fast on CPU; float16 for GPU
+    max_words: int = 4              # words per on-screen line
+    max_chars: int = 26
+    font: str = "DejaVu Sans"
+    font_size: int = 84             # in output pixels (1080x1920)
+    text_color: str = "#FFFFFF"
+    highlight_color: str = "#FFE600"
+    outline: int = 6
+    margin_bottom: int = 480        # keeps text above TikTok/IG UI overlays
+    uppercase: bool = True
+
+
 class CaptionCfg(BaseModel):
     template: str = "{title} 🔥 (clip from @{streamer} on Twitch)\n\n{hashtags}"
     hashtags: list[str] = Field(default_factory=lambda: ["fyp", "twitch", "gaming"])
@@ -74,6 +93,7 @@ class Config(BaseModel):
     discovery: DiscoveryCfg = Field(default_factory=DiscoveryCfg)
     processing: ProcessingCfg = Field(default_factory=ProcessingCfg)
     caption: CaptionCfg = Field(default_factory=CaptionCfg)
+    subtitles: SubtitlesCfg = Field(default_factory=SubtitlesCfg)
     platforms: PlatformsCfg = Field(default_factory=PlatformsCfg)
     hosting: HostingCfg = Field(default_factory=HostingCfg)
     schedule: ScheduleCfg = Field(default_factory=ScheduleCfg)

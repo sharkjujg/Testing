@@ -20,6 +20,15 @@ processing:
   crf: 20
   preset: veryfast
 
+# Burned-in word-highlight captions via Whisper (pip install -e '.[captions]').
+# First run downloads the model; "small" is a good CPU speed/accuracy balance.
+subtitles:
+  enabled: true
+  model: small
+  language: null            # null = auto-detect
+  max_words: 4
+  highlight_color: "#FFE600"
+
 caption:
   template: "{title} 🔥 (clip from @{streamer} on Twitch)\n\n{hashtags}"
   hashtags: [fyp, twitch, gaming, clips]

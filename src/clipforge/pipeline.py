@@ -10,6 +10,8 @@ from .caption import build_caption
 from .config import Config
 from .db import Database
 from .models import Clip
+from .processing.subtitles import write_ass
+from .processing.transcribe import Transcriber
 from .processing.video import render_vertical
 from .publishers.base import Publisher
 
@@ -44,6 +46,22 @@ def discover(cfg: Config, source: ClipSource, now: datetime | None = None) -> li
     return sorted(found, key=lambda c: c.score(now), reverse=True)
 
 
+def _make_subtitles(clip: Clip, raw: Path, cfg: Config, transcriber: Transcriber | None,
+                    subs_dir: Path) -> Path | None:
+    """Transcribe the clip into an .ass file. Never fatal: no captions beats no post."""
+    if transcriber is None or not cfg.subtitles.enabled:
+        return None
+    try:
+        words = transcriber.transcribe(raw)
+        if not words:
+            log.info("no speech detected in %s; skipping captions", clip.id)
+            return None
+        return write_ass(words, subs_dir / f"{clip.id}.ass", cfg.subtitles, cfg.processing)
+    except Exception as e:
+        log.warning("captioning %s failed, rendering without captions: %s", clip.id, e)
+        return None
+
+
 def run_once(
     cfg: Config,
     db: Database,
@@ -53,6 +71,7 @@ def run_once(
     download: Callable[[Clip, Path], Path],
     dry_run: bool = False,
     render: Callable[..., Path] = render_vertical,
+    transcriber: Transcriber | None = None,
 ) -> RunSummary:
     summary = RunSummary()
     streamers = {s.name.lower(): s for s in cfg.streamers}
@@ -81,8 +100,9 @@ def run_once(
             rendered = db.rendered_path(clip.id)
             if rendered is None:
                 raw = download(clip, data / "raw")
+                subs = _make_subtitles(clip, raw, cfg, transcriber, data / "subs")
                 rendered = render(raw, data / "rendered" / f"{clip.id}.mp4", cfg.processing,
-                                  max_seconds=cfg.discovery.max_duration)
+                                  max_seconds=cfg.discovery.max_duration, subtitles=subs)
                 db.set_rendered(clip.id, rendered)
         except Exception as e:
             log.error("processing %s failed: %s", clip.id, e)

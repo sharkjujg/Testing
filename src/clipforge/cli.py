@@ -10,6 +10,7 @@ from .db import Database
 from .pipeline import discover, run_once
 from .publishers.hosting import PublicHost
 from .publishers.instagram import InstagramPublisher
+from .processing.transcribe import WhisperTranscriber
 from .publishers.tiktok import TikTokPublisher
 from .sources.download import download_clip
 from .sources.twitch import TwitchSource
@@ -17,40 +18,42 @@ from .sources.twitch import TwitchSource
 log = logging.getLogger("clipforge")
 
 
-def _build(cfg: Config):
+def _build(cfg: Config, *, posting: bool = True):
     secrets = Secrets.from_env()
     db = Database(cfg.paths.data_dir / "clipforge.db")
     source = TwitchSource(secrets.twitch_client_id, secrets.twitch_client_secret)
     publishers = []
-    if cfg.platforms.tiktok.enabled:
+    if posting and cfg.platforms.tiktok.enabled:
         publishers.append(TikTokPublisher(cfg.platforms.tiktok, secrets, db))
-    if cfg.platforms.instagram.enabled:
+    if posting and cfg.platforms.instagram.enabled:
         publishers.append(InstagramPublisher(cfg.platforms.instagram, secrets, PublicHost(cfg.hosting)))
-    return db, source, publishers
+    transcriber = WhisperTranscriber(cfg.subtitles) if posting and cfg.subtitles.enabled else None
+    return db, source, publishers, transcriber
 
 
 def cmd_discover(cfg: Config, args) -> int:
-    _, source, _ = _build(cfg)
+    _, source, _, _ = _build(cfg, posting=False)
     for c in discover(cfg, source)[: args.limit]:
         print(f"{c.view_count:>8} views  {c.duration:>4.0f}s  {c.streamer:<12} {c.title}  <{c.url}>")
     return 0
 
 
 def cmd_run(cfg: Config, args) -> int:
-    db, source, publishers = _build(cfg)
+    db, source, publishers, transcriber = _build(cfg)
     if not publishers and not args.dry_run:
         print("No platforms enabled in config.", file=sys.stderr)
         return 1
-    s = run_once(cfg, db, source, publishers, download=download_clip, dry_run=args.dry_run)
+    s = run_once(cfg, db, source, publishers, download=download_clip, dry_run=args.dry_run,
+                 transcriber=transcriber)
     print(f"discovered={s.discovered} processed={s.processed} posted={len(s.posted)} failed={len(s.failed)}")
     return 1 if s.failed else 0
 
 
 def cmd_watch(cfg: Config, args) -> int:
-    db, source, publishers = _build(cfg)
+    db, source, publishers, transcriber = _build(cfg)
     while True:
         try:
-            run_once(cfg, db, source, publishers, download=download_clip)
+            run_once(cfg, db, source, publishers, download=download_clip, transcriber=transcriber)
         except Exception:
             log.exception("run failed")
         time.sleep(cfg.schedule.interval_minutes * 60)

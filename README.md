@@ -13,7 +13,7 @@ Requires Python 3.11+ and `ffmpeg` on your PATH.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
-pip install -e '.[dev]'
+pip install -e '.[dev,captions]'   # drop ',captions' if you don't want Whisper auto-captions
 cp .env.example .env              # fill in API credentials
 cp config.example.yaml config.yaml  # pick streamers / platforms
 
@@ -29,7 +29,8 @@ pytest                            # run tests
 
 - **Discovery** (`sources/twitch.py`, `pipeline.discover`): pulls each streamer's clips from the last `lookback_hours`, drops those under `min_views` or outside the duration window, and ranks by `views / (age_hours + 2)^1.2` so fresh, fast-growing clips win.
 - **Render** (`processing/video.py`): `blur` layout puts the 16:9 clip over a blurred copy of itself; `crop` centre-crops. H.264/AAC, 1080x1920, `faststart`.
-- **Captions** (`caption.py`): template + de-duplicated hashtags, credits the streamer.
+- **Auto-captions** (`processing/transcribe.py`, `processing/subtitles.py`): when `subtitles.enabled`, [faster-whisper](https://github.com/SYSTRAN/faster-whisper) transcribes each clip locally (no API key, word-level timestamps). Words are grouped into short lines and written as an ASS karaoke file so each word lights up as it's spoken, then burned in during the ffmpeg render, placed above the TikTok/IG UI overlay. The model downloads on first use (`small` by default; use `base` or `tiny` on slow CPUs). If transcription fails or no speech is found, the clip is still posted without captions.
+- **Post captions** (`caption.py`): template + de-duplicated hashtags, credits the streamer.
 - **Publishing** (`publishers/`): one adapter per platform behind a tiny `Publisher` protocol, so adding YouTube Shorts is one new file.
 - **State** (`db.py`): a clip is never posted twice to a platform; failures retry up to `max_attempts`; `max_posts_per_day` is enforced per platform. Rotating TikTok tokens are stored in the db.
 
@@ -54,7 +55,6 @@ pytest                            # run tests
 
 ## Roadmap ideas
 
-- Auto-captions (Whisper) burned into the video
 - Facecam/gameplay split layout for a more TikTok-native look
 - Chat-activity spike detection for clips that don't exist yet (cut from VODs)
 - LLM-written titles/hooks, YouTube Shorts adapter, review-before-post queue
